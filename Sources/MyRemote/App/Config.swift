@@ -35,6 +35,10 @@ struct AppConfig: Codable, Equatable {
     /// 虚拟声卡设备名前缀。
     var blackHoleDeviceName = "BlackHole 2ch"
 
+    /// 局域网 Web 遥控器（HTTPS + 手机麦克风）。
+    var webRemoteEnabled = false
+    var webRemotePort = 47823
+
     /// 按键映射层；default 层永远存在并作为兜底。
     var keyLayers: [KeyLayer] = [KeyLayer.makeDefault()]
 
@@ -44,6 +48,7 @@ struct AppConfig: Codable, Equatable {
         case version, language, useItn, autoPaste, showToast, modelRepo, hfMirror, logTranscripts
         case commandRules
         case shareVoiceToBlackHole, blackHoleDeviceName, modeSoundsEnabled
+        case webRemoteEnabled, webRemotePort
         case keyLayers
     }
 
@@ -64,6 +69,8 @@ struct AppConfig: Codable, Equatable {
         blackHoleDeviceName = try container.decodeIfPresent(String.self, forKey: .blackHoleDeviceName)
             ?? "BlackHole 2ch"
         modeSoundsEnabled = try container.decodeIfPresent(Bool.self, forKey: .modeSoundsEnabled) ?? true
+        webRemoteEnabled = try container.decodeIfPresent(Bool.self, forKey: .webRemoteEnabled) ?? false
+        webRemotePort = try container.decodeIfPresent(Int.self, forKey: .webRemotePort) ?? 47823
         var layers = try container.decodeIfPresent([KeyLayer].self, forKey: .keyLayers)
             ?? [KeyLayer.makeDefault()]
         if !layers.contains(where: { $0.isDefault }) {
@@ -86,6 +93,8 @@ struct AppConfig: Codable, Equatable {
         try container.encode(shareVoiceToBlackHole, forKey: .shareVoiceToBlackHole)
         try container.encode(blackHoleDeviceName, forKey: .blackHoleDeviceName)
         try container.encode(modeSoundsEnabled, forKey: .modeSoundsEnabled)
+        try container.encode(webRemoteEnabled, forKey: .webRemoteEnabled)
+        try container.encode(webRemotePort, forKey: .webRemotePort)
         try container.encode(keyLayers, forKey: .keyLayers)
     }
 }

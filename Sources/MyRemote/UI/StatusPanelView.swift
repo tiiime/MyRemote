@@ -356,7 +356,7 @@ struct StatusPanelView: View {
 
     private var versionText: String {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-            ?? "0.12.8"
+            ?? "0.13.0"
         return "v\(version) · SenseVoice"
     }
 

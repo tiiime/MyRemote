@@ -162,4 +162,22 @@ final class SettingsModel: ObservableObject {
     func refreshPermissions() {
         objectWillChange.send()
     }
+
+    // MARK: - Web 遥控器
+
+    func setWebRemoteEnabled(_ value: Bool) {
+        services.setWebRemoteEnabled(value)
+    }
+
+    func revealWebRemoteCA() {
+        guard !snapshot.webRemoteCA.isEmpty else { return }
+        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: snapshot.webRemoteCA)])
+    }
+
+    func copyWebRemoteURL() {
+        guard !snapshot.webRemoteURL.isEmpty else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(snapshot.webRemoteURL, forType: .string)
+        Toast.shared.show("已复制 Web 遥控器地址", duration: 1.4)
+    }
 }

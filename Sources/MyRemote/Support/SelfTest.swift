@@ -34,6 +34,7 @@ enum SelfTest {
         testModelURLs()
         testTextCleanup()
         testWavReader()
+        testWebRemotePage()
 
         print("self-test: \(checks - failures)/\(checks) passed")
         return failures == 0
@@ -384,6 +385,18 @@ enum SelfTest {
     private static func testTextCleanup() {
         expect(AppServices.cleanText("<|zh|><|NEUTRAL|><|Speech|>你好  世界") == "你好 世界", "清除 SenseVoice 标签")
         expect(AppServices.cleanText("  hello  ") == "hello", "去首尾空白")
+    }
+
+    private static func testWebRemotePage() {
+        expect(WebPage.html.contains("getUserMedia"), "Web 遥控器页面包含麦克风采集")
+        expect(WebPage.html.contains("/ws?token="), "Web 遥控器页面连接带 token 的 WebSocket")
+        expect(WebPage.html.contains("data-key=\"ok\""), "Web 遥控器页面包含 OK 按键")
+        var config = AppConfig()
+        config.webRemoteEnabled = true
+        config.webRemotePort = 50123
+        let data = try! JSONEncoder().encode(config)
+        let decoded = try! JSONDecoder().decode(AppConfig.self, from: data)
+        expect(decoded.webRemoteEnabled && decoded.webRemotePort == 50123, "Web 遥控器配置可持久化")
     }
 
     private static func testWavReader() {

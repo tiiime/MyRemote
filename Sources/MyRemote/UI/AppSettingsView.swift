@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import CoreBluetooth
+import CoreImage
 import IOKit.hid
 
 struct AppSettingsView: View {
@@ -15,6 +16,7 @@ struct AppSettingsView: View {
     var body: some View {
         VStack(spacing: 16) {
             remoteCard
+            webRemoteCard
             permissionsCard
             languageCard
             environmentCard
@@ -68,6 +70,97 @@ struct AppSettingsView: View {
             }
         }
         .duoCard()
+    }
+
+    // MARK: - Web 遥控器
+
+    private var webRemoteCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            DuoCardHeader(title: "Web 遥控器", icon: "iphone.radiowaves.left.and.right", tint: Duo.whale,
+                          trailing: AnyView(DuoChip(
+                            text: model.snapshot.webRemoteRunning ? "运行中" : "已关闭",
+                            color: model.snapshot.webRemoteRunning ? Duo.treeFrog : Duo.wolf,
+                            background: model.snapshot.webRemoteRunning ? Duo.seaSponge : Duo.swan)))
+
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("手机遥控器 + 手机麦克风")
+                        .font(.duo(13, .bold))
+                        .foregroundStyle(Duo.eel)
+                    Text("手机打开局域网 HTTPS 页面，按键复用当前映射；按住说话可把手机麦克风转发到 BlackHole 或走离线识别。")
+                        .font(.duo(11, .medium))
+                        .foregroundStyle(Duo.wolf)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer()
+                Toggle("", isOn: Binding(
+                    get: { model.config.webRemoteEnabled },
+                    set: { model.setWebRemoteEnabled($0) }
+                ))
+                .toggleStyle(DuoToggleStyle())
+                .labelsHidden()
+            }
+
+            if model.snapshot.webRemoteRunning {
+                if let qr = qrImage(model.snapshot.webRemoteURL) {
+                    HStack(alignment: .top, spacing: 14) {
+                        Image(nsImage: qr)
+                            .interpolation(.none)
+                            .resizable()
+                            .frame(width: 132, height: 132)
+                            .padding(7)
+                            .background(RoundedRectangle(cornerRadius: 12).fill(.white))
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Duo.swan, lineWidth: 2))
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("手机扫码打开")
+                                .font(.duo(11, .bold))
+                                .foregroundStyle(Duo.hare)
+                            Text(model.snapshot.webRemoteURL)
+                                .font(.duo(10, .medium))
+                                .foregroundStyle(Duo.eel)
+                                .textSelection(.enabled)
+                                .lineLimit(3)
+                            HStack(spacing: 8) {
+                                Button("复制地址") { model.copyWebRemoteURL() }
+                                    .buttonStyle(DuoSecondaryButtonStyle(height: 28))
+                                Button("打开 CA 文件夹") { model.revealWebRemoteCA() }
+                                    .buttonStyle(DuoSecondaryButtonStyle(height: 28))
+                            }
+                        }
+                    }
+                }
+                Text("首次使用：把 CA 证书 AirDrop 到手机 → 设置中安装描述文件 →「通用 → 关于本机 → 证书信任设置」开启完全信任。之后用 Safari 打开上面的地址。")
+                    .font(.duo(10, .medium))
+                    .foregroundStyle(Duo.hare)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("页面必须走 HTTPS；HTTP 下浏览器不会授予手机麦克风权限。Web 端可触发当前按键映射，请只在可信局域网开启。")
+                    .font(.duo(10, .medium))
+                    .foregroundStyle(Duo.hare)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else if !model.snapshot.webRemoteError.isEmpty {
+                Text(model.snapshot.webRemoteError)
+                    .font(.duo(11, .medium))
+                    .foregroundStyle(Duo.fireAnt)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text("打开开关后，Mac 会在局域网启动 HTTPS 服务；手机与 Mac 需要在同一 Wi-Fi。")
+                    .font(.duo(10, .medium))
+                    .foregroundStyle(Duo.hare)
+            }
+        }
+        .duoCard()
+    }
+
+    private func qrImage(_ text: String) -> NSImage? {
+        guard !text.isEmpty, let filter = CIFilter(name: "CIQRCodeGenerator") else { return nil }
+        filter.setValue(Data(text.utf8), forKey: "inputMessage")
+        filter.setValue("M", forKey: "inputCorrectionLevel")
+        guard let output = filter.outputImage else { return nil }
+        let scaled = output.transformed(by: CGAffineTransform(scaleX: 6, y: 6))
+        let rep = NSCIImageRep(ciImage: scaled)
+        let image = NSImage(size: rep.size)
+        image.addRepresentation(rep)
+        return image
     }
 
     // MARK: - 权限
@@ -252,7 +345,7 @@ struct AppSettingsView: View {
                     .textSelection(.enabled)
             }
 
-            Text("MyRemote 0.12.8 · SenseVoice · sherpa-onnx · 语音链路移植自 MiRemote（MIT）")
+            Text("MyRemote 0.13.0 · SenseVoice · sherpa-onnx · 语音链路移植自 MiRemote（MIT）")
                 .font(.duo(10, .medium))
                 .foregroundStyle(Duo.hare)
         }

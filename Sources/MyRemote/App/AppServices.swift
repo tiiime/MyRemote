@@ -29,6 +29,11 @@ final class AppServices: NSObject, VoiceBridgeDelegate {
         var partialTranscript: String?
         var lastTranscript: String?
         var lastError: String?
+        /// 局域网 Web 遥控器状态。
+        var webRemoteRunning = false
+        var webRemoteURL = ""
+        var webRemoteCA = ""
+        var webRemoteError = ""
         /// 当前工作模式：默认转发 / 命令 / 输入。
         var voiceMode: VoiceMode = .forward
         /// 手动激活的映射层（nil = 跟随默认/应用层）。
@@ -74,6 +79,14 @@ final class AppServices: NSObject, VoiceBridgeDelegate {
     /// 音频线程读取当前模式（命令/文字输入模式不转发）。
     private let audioModeLock = NSLock()
     private var audioMode: VoiceMode = .forward
+
+    // 局域网 Web 遥控器。
+    private let webRemote = WebRemoteServer()
+    private var webVoiceActive = false
+    private var webVoiceMode: VoiceMode = .forward
+    private var webVoiceSamples: [Int16] = []
+    private var webVoiceBridge: BlackHoleBridge?
+    private var webVoiceGeneration = 0
 
     // 录音期间的准实时识别预览。
     private var previewTimer: Timer?
@@ -132,6 +145,8 @@ final class AppServices: NSObject, VoiceBridgeDelegate {
         }
 
         setupWorkspaceObservers()
+        configureWebRemote()
+        if config.webRemoteEnabled { startWebRemote() }
 
         if handleForeignRemoteApp() {
             startEngines()
@@ -219,6 +234,7 @@ final class AppServices: NSObject, VoiceBridgeDelegate {
 
     func stop() {
         stopLivePreview()
+        stopWebRemote()
         stopEngines()
         capture.cancel()
         asr.unload()
@@ -596,6 +612,184 @@ final class AppServices: NSObject, VoiceBridgeDelegate {
             } catch {
                 DispatchQueue.main.async { self.previewInFlight = false }
             }
+        }
+    }
+
+    // MARK: - 局域网 Web 遥控器
+
+    private func configureWebRemote() {
+        webRemote.onState = { [weak self] state in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.snapshot.webRemoteRunning = state.phase == .running
+                self.snapshot.webRemoteURL = state.url
+                self.snapshot.webRemoteCA = state.caPath
+                self.snapshot.webRemoteError = state.error
+                self.notify()
+            }
+        }
+        webRemote.onKey = { [weak self] key in
+            DispatchQueue.main.async { self?.keyRouter.handle(key, isRepeat: false) }
+        }
+        webRemote.onMode = { [weak self] mode in
+            DispatchQueue.main.async { self?.setVoiceMode(mode) }
+        }
+        webRemote.onVoiceStart = { [weak self] mode in
+            guard let self else { return false }
+            if Thread.isMainThread { return self.beginWebVoice(mode) }
+            var ok = false
+            DispatchQueue.main.sync { ok = self.beginWebVoice(mode) }
+            return ok
+        }
+        webRemote.onVoiceData = { [weak self] data in
+            DispatchQueue.main.async { self?.appendWebVoice(data) }
+        }
+        webRemote.onVoiceStop = { [weak self] in
+            DispatchQueue.main.async { self?.endWebVoice() }
+        }
+        webRemote.currentMode = { [weak self] in self?.snapshot.voiceMode ?? .forward }
+    }
+
+    func setWebRemoteEnabled(_ enabled: Bool) {
+        updateConfig { $0.webRemoteEnabled = enabled }
+        if enabled { startWebRemote() } else { stopWebRemote() }
+    }
+
+    func startWebRemote() {
+        let raw = config.webRemotePort
+        let port = raw > 0 && raw <= 65535 ? UInt16(raw) : 47823
+        webRemote.start(port: port)
+    }
+
+    func stopWebRemote() {
+        webRemote.stop()
+        cancelWebVoice()
+        snapshot.webRemoteRunning = false
+        snapshot.webRemoteURL = ""
+        snapshot.webRemoteError = ""
+        notify()
+    }
+
+    private func beginWebVoice(_ mode: VoiceMode) -> Bool {
+        guard !webVoiceActive, !capture.isActive else { return false }
+
+        if mode == .forward {
+            guard let bridge = sharingBridge(), bridge.isDeviceAvailable else {
+                Log.warn("Web 遥控器：BlackHole 不可用，无法转发手机麦克风")
+                return false
+            }
+            bridge.streamStarted(sampleRate: 16000)
+            webVoiceBridge = bridge
+        } else {
+            guard asr.isReady else { return false }
+        }
+
+        webVoiceGeneration += 1
+        webVoiceMode = mode
+        webVoiceSamples.removeAll(keepingCapacity: true)
+        webVoiceActive = true
+        setVoiceMode(mode)
+        snapshot.capturing = true
+        snapshot.transcribing = false
+        notify()
+        return true
+    }
+
+    private func appendWebVoice(_ data: Data) {
+        guard webVoiceActive, data.count >= 2 else { return }
+        let bytes = [UInt8](data)
+        var samples = [Int16](repeating: 0, count: bytes.count / 2)
+        for index in 0..<samples.count {
+            let low = UInt16(bytes[index * 2])
+            let high = UInt16(bytes[index * 2 + 1]) << 8
+            samples[index] = Int16(bitPattern: low | high)
+        }
+
+        if webVoiceMode == .forward {
+            webVoiceBridge?.write(samples)
+        } else if webVoiceSamples.count < 16000 * 90 {
+            webVoiceSamples.append(contentsOf: samples)
+        }
+    }
+
+    private func endWebVoice() {
+        guard webVoiceActive else { return }
+        webVoiceActive = false
+        let mode = webVoiceMode
+        webVoiceBridge?.streamStopped()
+        webVoiceBridge = nil
+        snapshot.capturing = false
+        notify()
+
+        if mode == .forward {
+            if config.showToast { Toast.shared.show("手机语音已转发到 BlackHole", duration: 1.6) }
+            return
+        }
+
+        let samples = webVoiceSamples
+        webVoiceSamples.removeAll(keepingCapacity: true)
+        let generation = webVoiceGeneration
+        guard asr.isReady else {
+            Toast.shared.show("语音模型还没准备好", duration: 2)
+            return
+        }
+
+        snapshot.transcribing = true
+        notify()
+        asrQueue.async { [weak self] in
+            guard let self else { return }
+            do {
+                let audio = self.trimSilence(samples)
+                guard audio.count >= 4_000 else {
+                    DispatchQueue.main.async {
+                        self.snapshot.transcribing = false
+                        self.notify()
+                        Toast.shared.show("没听清，再说一次？", duration: 1.5)
+                    }
+                    return
+                }
+                let transcript = try self.asr.transcribe(samples: audio.map { Float($0) / 32768.0 })
+                let text = Self.cleanText(transcript.text)
+                DispatchQueue.main.async {
+                    guard generation == self.webVoiceGeneration else { return }
+                    self.snapshot.transcribing = false
+                    self.snapshot.lastTranscript = text
+                    self.notify()
+                    self.webRemote.sendTranscript(text)
+                    let meaningful = text.contains { $0.isLetter || $0.isNumber }
+                    guard !text.isEmpty, meaningful else {
+                        if self.config.showToast { Toast.shared.show("没识别到文字", duration: 1.5) }
+                        return
+                    }
+                    if mode == .command {
+                        self.runCommand(text)
+                    } else {
+                        self.deliver(text)
+                    }
+                }
+                Log.info("Web 语音识别完成（\(String(format: "%.2f", transcript.duration))s）")
+            } catch {
+                DispatchQueue.main.async {
+                    guard generation == self.webVoiceGeneration else { return }
+                    self.snapshot.transcribing = false
+                    self.notify()
+                    self.webRemote.sendError(error.localizedDescription)
+                    Toast.shared.show("识别失败：\(error.localizedDescription)", duration: 3)
+                }
+            }
+        }
+    }
+
+    private func cancelWebVoice() {
+        webVoiceGeneration += 1
+        if webVoiceActive {
+            webVoiceActive = false
+            webVoiceBridge?.streamStopped()
+            webVoiceBridge = nil
+            webVoiceSamples.removeAll(keepingCapacity: true)
+            snapshot.capturing = false
+            snapshot.transcribing = false
+            notify()
         }
     }
 

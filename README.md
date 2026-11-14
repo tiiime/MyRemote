@@ -4,7 +4,7 @@
 
 ![MyRemote](docs/ui-dashboard.png)
 
-`v0.12.8` · macOS 14+ · Apple Silicon · MIT
+`v0.13.0` · macOS 14+ · Apple Silicon · MIT
 
 ## 演示
 
@@ -23,6 +23,7 @@ https://github.com/user-attachments/assets/30bdf227-e75d-463a-8728-1120c050484d
 - **语音共享**：配合 [BlackHole 2ch](https://existential.audio/blackhole/)，其他 App 可以把遥控器当麦克风。
 - **联动 DeepSeek Harness**：命令模式识别出的文字可以直接投递到本机 DSH 会话，由 Agent 控制电脑，例如播放音乐、打开应用。
 - **按键映射**：可视化遥控器布局，支持默认层 / 应用层 / 手动层、穿透兜底；动作可映射到媒体/系统键、模式切换、打开应用/网页、运行 Shell、发送到 DSH、任意键盘 keycode（如回车）。
+- **Web 遥控器**：Mac 内置局域网 HTTPS 页面，手机扫码即可按键遥控，并把手机麦克风通过 WebSocket PCM 送进同一套 ASR / BlackHole 链路。
 - **权限向导**：拖拽 App 图标到系统设置完成辅助功能 / 输入监控授权。
 - **菜单栏常驻**：状态、电量、模式切换、模型/声卡状态和常用操作。
 
@@ -37,7 +38,7 @@ cd MyRemote
 open dist/MyRemote.app
 ```
 
-也可以直接解压 `dist/MyRemote-0.12.8.zip` 后拖进「应用程序」。
+也可以直接解压 `dist/MyRemote-0.13.0.zip` 后拖进「应用程序」。
 
 首次启动：
 
@@ -48,13 +49,30 @@ open dist/MyRemote.app
 
 > 旧版 MiRemote 与本应用不能同时运行。
 
+## Web 遥控器（可选）
+
+设置窗口 →「Web 遥控器」打开开关，Mac 会在局域网启动 HTTPS 服务，手机扫码打开一个模拟遥控器页面。按键会复用当前按键映射，手机麦克风支持两种用法：
+
+- **音频输入模式**：手机按住说话，PCM 直接转发到 BlackHole，会议/录音软件选 `BlackHole 2ch` 即可把手机当无线麦克风；
+- **命令 / 文字输入模式**：手机 PCM 进入 SenseVoice，命令模式匹配指令，文字输入模式粘贴到 Mac 前台输入框。
+
+首次使用：
+
+1. 手机与 Mac 连接同一个 Wi-Fi（访达 → 网络里的 Mac 也可以）。
+2. 在设置页点「打开 CA 文件夹」，把 `ca.crt` 通过 AirDrop 发到手机。
+3. iPhone：设置 → 已下载描述文件 → 安装；再进入 通用 → 关于本机 → 证书信任设置，对 **MyRemote Local CA** 开启完全信任。
+4. 用手机相机扫描设置页二维码，Safari 打开；允许麦克风。
+5. macOS 如果弹出防火墙询问，允许 MyRemote 接受局域网连接。
+
+注意：页面必须通过 HTTPS 打开，浏览器才会授予麦克风权限；Mac 的局域网 IP 变化后会重新签发服务器证书（CA 不变），手机不需要重新安装 CA。Web 端能触发当前按键映射（包括 Shell / DSH），请只在可信局域网开启，不用的时候关掉开关。
+
 ## 发布
 
 推送 `v*` tag 会自动在 GitHub Actions 的 Apple Silicon runner 上构建、自检并创建 Release：
 
 ```bash
-git tag v0.12.8
-git push origin v0.12.8
+git tag v0.13.0
+git push origin v0.13.0
 ```
 
 也可以在仓库的 **Actions → Release → Run workflow** 手动触发（填版本号）；勾选 `create_release` 时会用 `v<版本>` 作为 tag 创建 Release，不勾选则只上传构建 artifact。产物包含 `MyRemote-<版本>.zip` 和 SHA-256 校验文件。

@@ -235,7 +235,7 @@ struct SidebarView: View {
                     .strokeBorder(Duo.swan, lineWidth: 1.5)
             )
 
-            Text("v0.12.8 · SenseVoice")
+            Text("v0.13.0 · SenseVoice")
                 .font(.duo(10, .medium))
                 .foregroundStyle(Duo.hare)
                 .padding(.horizontal, 2)

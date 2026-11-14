@@ -9,6 +9,7 @@ if arguments.contains("--help") || arguments.contains("-h") {
     用法:
       MyRemote                启动菜单栏应用
       MyRemote --self-test    运行内置自检
+      MyRemote --web-test     只启动 Web 遥控器（开发调试）
       MyRemote --asr <wav>    用本地 SenseVoice 模型转写一段 WAV
       MyRemote --list-dsh     列出本机 DSH 会话
       MyRemote --send-dsh <标题> <消息> [--execute]
@@ -89,6 +90,10 @@ if arguments.contains("--download-selftest") {
 
 if arguments.contains("--download-model") {
     exit(DownloadRunner.run() ? 0 : 3)
+}
+
+if arguments.contains("--web-test") {
+    WebRunner.run()
 }
 
 if arguments.contains("--self-test") {
