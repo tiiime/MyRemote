@@ -64,7 +64,7 @@ open dist/MyRemote.app
 4. 用手机相机扫描设置页二维码，Safari 打开；允许麦克风。
 5. macOS 如果弹出防火墙或「本地网络」权限询问，允许 MyRemote 接受局域网连接。
 
-注意：页面必须通过 HTTPS 打开，浏览器才会授予麦克风权限；Mac 的局域网 IP 变化后会重新签发服务器证书（CA 不变），手机不需要重新安装 CA。Web 端能触发当前按键映射（包括 Shell / DSH），请只在可信局域网开启，不用的时候关掉开关。
+注意：页面必须通过 HTTPS 打开，浏览器才会授予麦克风权限；服务器证书每次启动都会重新签发，私钥导入后即删除，不长期落盘。手机信任的本地 CA 保持稳定，否则每次都要重新安装。CA 私钥保存在 `~/Library/Application Support/MyRemote/WebRemote/ca.key`（仅当前用户可读、排除 Time Machine），它是最高敏感项：能读取它的同用户程序可以伪造任意 HTTPS 证书。请只在个人可信 Mac 上开启 Web 遥控器，不用的时候关掉；怀疑泄露时删除整个 `WebRemote` 目录、重启 App，并在手机上移除旧的 **MyRemote Local CA**。Web 端能触发当前按键映射（包括 Shell / DSH），务必配合 token 和可信局域网使用。
 
 ## 发布
 

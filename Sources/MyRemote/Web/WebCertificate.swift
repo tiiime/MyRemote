@@ -1,11 +1,10 @@
 import Foundation
 import Security
 
-/// 本地 HTTPS 证书：一个本地 CA + 由它签发的服务器证书。
-/// 手机只需信任一次 CA，之后局域网 IP 变化时重新签发即可。
+/// 本地 HTTPS 证书：长期稳定的本地 CA + 每次启动重新签发的服务器证书。
+/// 手机只需信任一次 CA；服务器私钥导入内存后立即删除，不长期落盘。
 struct WebCertificateMaterial {
     let caURL: URL
-    let p12URL: URL
     let identity: SecIdentity
     let ips: [String]
 }
@@ -28,34 +27,48 @@ enum WebCertificate {
 
     static func ensure(directory: URL, ips: [String]) throws -> WebCertificateMaterial {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
+        var guardedDirectory = directory
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try? guardedDirectory.setResourceValues(values)
 
         let caURL = directory.appendingPathComponent("ca.crt")
         let p12URL = directory.appendingPathComponent("server.p12")
         let sanURL = directory.appendingPathComponent("server.san")
+        let serverKey = directory.appendingPathComponent("server.key")
+        let serverCSR = directory.appendingPathComponent("server.csr")
         let wanted = Set(ips + ["127.0.0.1"])
 
-        let current = (try? String(contentsOf: sanURL, encoding: .utf8))?
-            .split(separator: ",").map(String.init) ?? []
-        let valid = FileManager.default.fileExists(atPath: caURL.path)
-            && FileManager.default.fileExists(atPath: p12URL.path)
-            && wanted.isSubset(of: Set(current))
-        if valid, let identity = try? loadIdentity(p12URL) {
-            return WebCertificateMaterial(caURL: caURL, p12URL: p12URL, identity: identity, ips: ips)
-        }
-
         try generateCAIfNeeded(directory: directory)
-        try generateServer(directory: directory, ips: Array(wanted).sorted(), sanURL: sanURL)
+        let password = randomPassword()
+        try generateServer(directory: directory, ips: Array(wanted).sorted(),
+                           sanURL: sanURL, password: password)
         guard FileManager.default.fileExists(atPath: caURL.path),
               FileManager.default.fileExists(atPath: p12URL.path) else {
             throw WebCertificateError.missingFiles
         }
+
         let identity: SecIdentity
         do {
-            identity = try loadIdentity(p12URL)
+            identity = try loadIdentity(p12URL, password: password)
         } catch {
             throw WebCertificateError.importFailed(error.localizedDescription)
         }
-        return WebCertificateMaterial(caURL: caURL, p12URL: p12URL, identity: identity, ips: ips)
+
+        // 服务器证书私钥已经进入 SecIdentity 内存；不把明文私钥长期留在磁盘。
+        for file in [serverKey, serverCSR, p12URL] {
+            try? FileManager.default.removeItem(at: file)
+        }
+        return WebCertificateMaterial(caURL: caURL, identity: identity, ips: ips)
+    }
+
+    private static func randomPassword() -> String {
+        var bytes = [UInt8](repeating: 0, count: 24)
+        if SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) != errSecSuccess {
+            return UUID().uuidString.replacingOccurrences(of: "-", with: "")
+        }
+        return bytes.map { String(format: "%02x", $0) }.joined()
     }
 
     private static func generateCAIfNeeded(directory: URL) throws {
@@ -90,7 +103,8 @@ enum WebCertificate {
         try? fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: caKey.path)
     }
 
-    private static func generateServer(directory: URL, ips: [String], sanURL: URL) throws {
+    private static func generateServer(directory: URL, ips: [String], sanURL: URL,
+                                      password: String) throws {
         let openssl = "/usr/bin/openssl"
         let caKey = directory.appendingPathComponent("ca.key")
         let caCert = directory.appendingPathComponent("ca.crt")
@@ -132,7 +146,7 @@ enum WebCertificate {
         try run(openssl, [
             "pkcs12", "-export", "-out", serverP12.path,
             "-inkey", serverKey.path, "-in", serverCert.path, "-certfile", caCert.path,
-            "-passout", "pass:myremote-local"
+            "-passout", "pass:\(password)"
         ])
 
         for file in [serverKey, serverP12] {
@@ -141,10 +155,10 @@ enum WebCertificate {
         try (ips.joined(separator: ",")).write(to: sanURL, atomically: true, encoding: .utf8)
     }
 
-    private static func loadIdentity(_ p12URL: URL) throws -> SecIdentity {
+    private static func loadIdentity(_ p12URL: URL, password: String) throws -> SecIdentity {
         let data = try Data(contentsOf: p12URL)
         var items: CFArray?
-        let options = [kSecImportExportPassphrase as String: "myremote-local"] as CFDictionary
+        let options = [kSecImportExportPassphrase as String: password] as CFDictionary
         let status = SecPKCS12Import(data as CFData, options, &items)
         guard status == errSecSuccess,
               let array = items as? [[String: Any]],
