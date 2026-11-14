@@ -80,7 +80,7 @@ git tag v0.12.8
 git push origin v0.12.8
 ```
 
-也可以在仓库的 **Actions → Release → Run workflow** 手动触发（填版本号）；手动触发只上传构建 artifact，推送 tag 才创建 Release。产物包含 `MyRemote-<版本>.zip` 和 SHA-256 校验文件。
+也可以在仓库的 **Actions → Release → Run workflow** 手动触发（填版本号）；勾选 `create_release` 时会用 `v<版本>` 作为 tag 创建 Release，不勾选则只上传构建 artifact。产物包含 `MyRemote-<版本>.zip` 和 SHA-256 校验文件。
 
 默认产物是 ad-hoc 签名。要发布给其他用户，需配置 Developer ID 签名/公证；本地固定签名证书的用法见上面的「避免每次更新都重新授权」。
 
