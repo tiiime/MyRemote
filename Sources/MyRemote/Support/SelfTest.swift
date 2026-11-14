@@ -235,8 +235,8 @@ enum SelfTest {
                "辅助功能面板 URL 正确")
         expect(PermissionKind.inputMonitoring.paneURL.contains("Privacy_ListenEvent"),
                "输入监控面板 URL 正确")
-        expect(PermissionKind.accessibility.next == .inputMonitoring,
-               "辅助功能授权后引导输入监控")
+        expect(PermissionKind.inputMonitoring.next == nil,
+               "输入监控之后没有下一步")
     }
 
     private static func testCommandDefaultsAndMigration() {
