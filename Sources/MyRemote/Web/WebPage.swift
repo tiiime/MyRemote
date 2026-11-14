@@ -58,19 +58,26 @@ button{
 .remote-head{display:flex;align-items:center;justify-content:space-between;min-height:44px}
 .remote-label{font-size:9px;font-weight:900;letter-spacing:.11em;color:#b0b7ac;text-align:center;flex:1}
 .key{
-  width:56px;height:56px;border-radius:50%;background:#f1f4ef;color:var(--ink);
+  width:56px;height:56px;border-radius:50%;background:#fff;color:#3e4a3a;
+  border:1.7px solid #3e4a3a;
   display:grid;place-items:center;font-size:19px;font-weight:900;line-height:1;
-  box-shadow:0 3px 0 #dde3d8;transition:transform .05s,box-shadow .05s,background .15s;
+  box-shadow:none;transition:transform .06s,background .15s;
   -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:manipulation;
 }
-.key.pressed,.key:active{transform:translateY(3px);box-shadow:0 1px 0 #dde3d8;background:#e9eee5}
-.key.ghost{background:#fff;border:1.5px solid var(--line);box-shadow:0 3px 0 #e9ede5;font-size:15px}
-.key.mic{background:#e9f8ff;color:#0397d6;box-shadow:0 3px 0 #bce6f7}
-.key.red{background:#ffe9ea;color:#db3f45;box-shadow:0 3px 0 #f3c6c8}
-.key.small{width:44px;height:44px;font-size:17px}
-.dpad{position:relative;width:min(224px,58vw);height:min(224px,58vw);margin:3px auto 1px;border-radius:50%;background:#f7faf5;border:1.5px solid #edf1e9}
-.dpad .key{position:absolute;width:64px;height:64px;box-shadow:none;background:#f0f4ed}
-.dpad .key:active{background:#e4ebdf}
+.key.pressed,.key:active{transform:scale(.94);background:#f1f5ee}
+.key.ghost{background:#fff;border:1.7px solid #3e4a3a;box-shadow:none;font-size:15px}
+.key.mic{background:#fff;color:#3e4a3a;border-color:#3e4a3a;box-shadow:none}
+.key.small{width:48px;height:48px;font-size:17px}
+.icon{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;display:block}
+.icon.sm{width:17px;height:17px;stroke-width:2.1}
+.icon.lg{width:27px;height:27px;stroke-width:1.8}
+.dpad{position:relative;width:min(224px,58vw);height:min(224px,58vw);margin:3px auto 1px;border-radius:50%;background:#fff;border:1.7px solid #3e4a3a}
+.dpad .key{position:absolute;width:64px;height:64px;box-shadow:none;background:transparent;border:0;color:#3e4a3a}
+.dpad .key:active{background:#f1f5ee;transform:scale(.92)}
+.dpad .up:active{transform:translateX(-50%) scale(.92)}
+.dpad .down:active{transform:translateX(-50%) scale(.92)}
+.dpad .left:active{transform:translateY(-50%) scale(.92)}
+.dpad .right:active{transform:translateY(-50%) scale(.92)}
 .dpad .up{left:50%;top:6px;transform:translateX(-50%)}
 .dpad .down{left:50%;bottom:6px;transform:translateX(-50%)}
 .dpad .left{left:6px;top:50%;transform:translateY(-50%)}
@@ -79,16 +86,18 @@ button{
 .dpad .left:active,.dpad .right:active{transform:translateY(-50%) translateY(3px)}
 .dpad .ok{
   left:50%;top:50%;transform:translate(-50%,-50%);width:66px;height:66px;
-  background:#fff;border:1.5px solid var(--line);box-shadow:0 3px 0 #dde3d8;font-size:13px;
+  background:#3e4a3a;border:0;box-shadow:none;font-size:13px;color:#fff;
 }
-.dpad .ok:active{transform:translate(-50%,-50%) translateY(3px);background:#f5f8f2}
+.dpad .ok:active{transform:translate(-50%,-50%) scale(.94);background:#2f3a2c}
 .controls{display:flex;align-items:center;justify-content:space-between;padding:0 2px}
 .nav{display:flex;gap:9px}
 .nav .key{width:50px;height:50px}
-.vol{display:flex;flex-direction:column;align-items:center;gap:5px;padding:4px 3px;border-radius:18px;background:#f7faf5}
-.vol .key{width:44px;height:44px;box-shadow:none;background:#fff;border:1.5px solid var(--line);font-size:21px}
-.vol .label{font-size:8px;font-weight:900;color:#aeb5aa;letter-spacing:.12em}
-.tv{width:100%;height:46px;border-radius:15px;background:#fff;border:1.5px solid var(--line);box-shadow:0 3px 0 #e9ede5;font-size:13px;font-weight:900;letter-spacing:.08em}
+.volume{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3px;border:1.7px solid #3e4a3a;border-radius:27px;background:#fff}
+.volume .key{width:42px;height:42px;box-shadow:none;background:transparent;border:0;font-size:21px}
+.volume .key:active{background:#f1f5ee;transform:scale(.92)}
+.volume .line{width:20px;height:1.5px;background:#3e4a3a;opacity:.5;margin:1px 0}
+.tv{width:100%;height:46px;border-radius:23px;background:#fff;border:1.7px solid #3e4a3a;box-shadow:none;font-size:13px;font-weight:900;letter-spacing:.08em;display:flex;align-items:center;justify-content:center;gap:8px}
+.tv:active{background:#f1f5ee;transform:scale(.99)}
 .log{background:#fff;border:1.5px solid #e4e8e1;border-radius:18px;padding:10px 13px;min-height:62px;display:flex;flex-direction:column;gap:4px}
 .log-head{display:flex;align-items:center;justify-content:space-between;font-size:9px;font-weight:900;letter-spacing:.08em;color:#aab2a5;text-transform:uppercase}
 .log-text{font-size:14px;font-weight:750;line-height:1.35;color:var(--ink);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;min-height:19px}
@@ -129,18 +138,20 @@ button{
   .remote{padding:8px 12px 9px;gap:5px;border-radius:22px}
   .remote-head{min-height:34px}
   .remote-label{font-size:8px}
-  .key{width:44px;height:44px;font-size:17px}
-  .key.small{width:38px;height:38px;font-size:15px}
-  .dpad{width:166px;height:166px;margin:1px auto 0}
+  .key{width:44px;height:44px;font-size:17px;border-width:1.5px}
+  .key.small{width:40px;height:40px;font-size:15px}
+  .icon{width:21px;height:21px}
+  .icon.lg{width:24px;height:24px}
+  .dpad{width:166px;height:166px;margin:1px auto 0;border-width:1.5px}
   .dpad .key{width:52px;height:52px}
   .dpad .up{top:4px}.dpad .down{bottom:4px}.dpad .left{left:4px}.dpad .right{right:4px}
   .dpad .ok{width:54px;height:54px;font-size:12px}
   .controls .key{width:42px;height:42px}
   .nav{gap:7px}
-  .vol{border-radius:14px;gap:3px;padding:3px}
-  .vol .key{width:38px;height:38px;font-size:18px}
-  .vol .label{font-size:7px}
-  .tv{height:38px;border-radius:13px;font-size:12px}
+  .volume{border-radius:23px;padding:2px}
+  .volume .key{width:38px;height:38px;font-size:18px}
+  .volume .line{width:17px}
+  .tv{height:38px;border-radius:19px;font-size:12px;border-width:1.5px}
   .log{min-height:50px;padding:7px 11px;border-radius:15px}
   .log-text{font-size:13px;min-height:17px}
   .voice{min-height:56px;border-radius:18px;font-size:16px;box-shadow:0 4px 0 var(--green-dark)}
@@ -149,6 +160,22 @@ button{
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true">
+  <defs>
+    <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M6.7 6.7a8 8 0 1 0 10.6 0"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+    <symbol id="i-left" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+    <symbol id="i-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h9a7 7 0 0 1 0 14h-1"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M9.5 21v-6h5v6"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+    <symbol id="i-tv" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+  </defs>
+</svg>
 <div class="app">
   <header class="top">
     <div class="brand"><div class="logo">▶</div><span>MyRemote</span></div>
@@ -167,33 +194,33 @@ button{
   <main class="stage">
     <div class="remote">
       <div class="remote-head">
-        <button class="key ghost small" data-key="power" aria-label="电源">⏻</button>
+        <button class="key small" data-key="power" aria-label="电源"><svg class="icon" aria-hidden="true"><use href="#i-power"/></svg></button>
         <div class="remote-label">XIAOMI REMOTE 2 PRO</div>
-        <button class="key mic" id="voiceTop" aria-label="按住说话">🎙</button>
+        <button class="key mic" id="voiceTop" aria-label="按住说话"><svg class="icon" aria-hidden="true"><use href="#i-mic"/></svg></button>
       </div>
 
       <div class="dpad">
-        <button class="key up" data-key="up" aria-label="上">↑</button>
-        <button class="key left" data-key="left" aria-label="左">←</button>
+        <button class="key up" data-key="up" aria-label="上"><svg class="icon" aria-hidden="true"><use href="#i-up"/></svg></button>
+        <button class="key left" data-key="left" aria-label="左"><svg class="icon" aria-hidden="true"><use href="#i-left"/></svg></button>
         <button class="key ok" data-key="ok" aria-label="OK">OK</button>
-        <button class="key right" data-key="right" aria-label="右">→</button>
-        <button class="key down" data-key="down" aria-label="下">↓</button>
+        <button class="key right" data-key="right" aria-label="右"><svg class="icon" aria-hidden="true"><use href="#i-right"/></svg></button>
+        <button class="key down" data-key="down" aria-label="下"><svg class="icon" aria-hidden="true"><use href="#i-down"/></svg></button>
       </div>
 
       <div class="controls">
         <div class="nav">
-          <button class="key ghost" data-key="back" aria-label="返回">↩</button>
-          <button class="key ghost" data-key="home" aria-label="主页">⌂</button>
-          <button class="key ghost" data-key="menu" aria-label="菜单">☰</button>
+          <button class="key ghost" data-key="back" aria-label="返回"><svg class="icon" aria-hidden="true"><use href="#i-back"/></svg></button>
+          <button class="key ghost" data-key="home" aria-label="主页"><svg class="icon" aria-hidden="true"><use href="#i-home"/></svg></button>
+          <button class="key ghost" data-key="menu" aria-label="菜单"><svg class="icon" aria-hidden="true"><use href="#i-menu"/></svg></button>
         </div>
-        <div class="vol">
-          <button class="key" data-key="volUp" aria-label="音量加">+</button>
-          <span class="label">VOL</span>
-          <button class="key" data-key="volDown" aria-label="音量减">−</button>
+        <div class="volume" aria-label="音量">
+          <button class="key" data-key="volUp" aria-label="音量加"><svg class="icon sm" aria-hidden="true"><use href="#i-plus"/></svg></button>
+          <span class="line"></span>
+          <button class="key" data-key="volDown" aria-label="音量减"><svg class="icon sm" aria-hidden="true"><use href="#i-minus"/></svg></button>
         </div>
       </div>
 
-      <button class="tv" data-key="tv" aria-label="TV">TV</button>
+      <button class="tv" data-key="tv" aria-label="TV"><svg class="icon sm" aria-hidden="true"><use href="#i-tv"/></svg><span>TV</span></button>
     </div>
   </main>
 
