@@ -40,6 +40,8 @@
         <key>NSAllowsLocalNetworking</key>
         <true/>
     </dict>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>手机通过局域网连接 MyRemote Web 遥控器。</string>
     <key>NSBluetoothAlwaysUsageDescription</key>
     <string>连接小米蓝牙遥控器，接收按键与语音。</string>
     <key>NSBluetoothPeripheralUsageDescription</key>
