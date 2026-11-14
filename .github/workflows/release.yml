@@ -1,0 +1,106 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "版本号（例如 0.12.8）；留空则用 Info.plist 中的版本"
+        required: false
+        type: string
+      create_release:
+        description: "创建 GitHub Release（勾选后使用 v<版本> 作为 tag）"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build macOS app
+    # MyRemote 依赖 arm64 的 sherpa-onnx dylib，必须使用 Apple Silicon runner。
+    # macOS 14 runner 已于 2026-11 退役，macos-15 是 arm64。
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify Apple Silicon
+        run: |
+          uname -m
+          test "$(uname -m)" = "arm64" || {
+            echo "需要 Apple Silicon (arm64) runner" >&2
+            exit 1
+          }
+
+      - name: Fetch sherpa-onnx runtime
+        run: ./scripts/fetch-sherpa.sh
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.version }}" ]]; then
+            VERSION="${{ inputs.version }}"
+          elif [[ "${GITHUB_REF_NAME}" == v* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="$(plutil -extract CFBundleShortVersionString raw Resources/Info-app.plist)"
+          fi
+
+          if [[ -z "$VERSION" ]]; then
+            echo "无法确定版本号" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Building MyRemote $VERSION"
+
+      - name: Stamp version
+        run: |
+          plutil -replace CFBundleShortVersionString \
+            -string "${{ steps.version.outputs.version }}" \
+            Resources/Info-app.plist
+
+      - name: Build and package
+        run: ./scripts/package.sh
+
+      - name: Self-test
+        run: ./dist/MyRemote.app/Contents/MacOS/MyRemote --self-test
+
+      - name: Zip artifact
+        run: |
+          cd dist
+          NAME="MyRemote-${{ steps.version.outputs.version }}"
+          ditto -c -k --sequesterRsrc --keepParent MyRemote.app "${NAME}.zip"
+          shasum -a 256 "${NAME}.zip" > "${NAME}.zip.sha256"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MyRemote-${{ steps.version.outputs.version }}
+          path: |
+            dist/MyRemote-${{ steps.version.outputs.version }}.zip
+            dist/MyRemote-${{ steps.version.outputs.version }}.zip.sha256
+          if-no-files-found: error
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.create_release)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('v{0}', steps.version.outputs.version) }}
+          name: MyRemote ${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          files: |
+            dist/MyRemote-${{ steps.version.outputs.version }}.zip
+            dist/MyRemote-${{ steps.version.outputs.version }}.zip.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
