@@ -146,6 +146,33 @@ enum SelfTest {
         expect(appInactive?.action == .playPause && appInactive?.layerID == KeyLayer.defaultID,
                "应用不在前台时回退默认层")
 
+        let multi = KeyLayer(id: "multi", name: "多应用", appBundleIDs: [
+            "com.apple.Safari", "com.apple.Xcode",
+        ], bindings: [RemoteKey.ok.rawValue: KeyAction.none.id])
+        let multiLayers = [def, multi]
+        for bundle in ["com.apple.Safari", "com.apple.Xcode"] {
+            let result = KeymapResolver.resolve(key: .ok, layers: multiLayers,
+                                                manualID: nil, frontmostBundleID: bundle)
+            expect(result?.action == KeyAction.none && result?.layerID == "multi",
+                   "多应用触发：\(bundle) 前台时激活")
+        }
+        let multiInactive = KeymapResolver.resolve(key: .ok, layers: multiLayers,
+                                                   manualID: nil, frontmostBundleID: "com.apple.Terminal")
+        expect(multiInactive?.layerID == KeyLayer.defaultID, "多应用都不在前台时回退默认层")
+
+        let legacyLayer = """
+        {"id":"legacy","name":"旧单应用层","appBundleID":"com.apple.Safari","bindings":{}}
+        """
+        let decodedLegacy = try! JSONDecoder().decode(KeyLayer.self, from: Data(legacyLayer.utf8))
+        expect(decodedLegacy.appBundleIDs == ["com.apple.Safari"], "旧单应用配置迁移成数组")
+
+        let multiLayer = KeyLayer(id: "roundtrip", name: "多应用",
+                                  appBundleIDs: ["com.apple.Safari", "com.apple.Xcode"],
+                                  bindings: [:])
+        let multiData = try! JSONEncoder().encode(multiLayer)
+        let decodedMulti = try! JSONDecoder().decode(KeyLayer.self, from: multiData)
+        expect(decodedMulti.appBundleIDs == multiLayer.appBundleIDs, "多应用触发条件 JSON 往返")
+
         expect(KeyAction(id: "mode.input") == .mode(.input), "动作 ID 往返：模式")
         expect(KeyAction(id: "layer.game") == .layer("game"), "动作 ID 往返：层")
         expect(KeyAction(id: "none") == KeyAction.none, "动作 ID 往返：无动作")

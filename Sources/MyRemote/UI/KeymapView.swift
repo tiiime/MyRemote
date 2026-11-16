@@ -465,10 +465,10 @@ struct KeymapView: View {
 
     private func conditionText(_ layer: KeyLayer) -> String {
         if layer.isDefault { return "永远兜底；任何层未绑定的键都会落到这里" }
-        if let bundle = layer.appBundleID, !bundle.isEmpty {
-            return localized("前台应用：%@", appName(bundle))
-        }
-        return "手动激活"
+        let names = layer.appBundleIDs.map { appName($0) }
+        if names.isEmpty { return "手动激活" }
+        if names.count == 1 { return localized("前台应用：%@", names[0]) }
+        return localized("前台应用（%lld 个）：%@", names.count, names.joined(separator: " / "))
     }
 
     private func switchSummary(_ layer: KeyLayer) -> String? {
@@ -731,7 +731,8 @@ struct KeyLayerEditorView: View {
     let onSaved: (String) -> Void
 
     @State private var name: String
-    @State private var appBundleID: String
+    @State private var appBundleIDs: [String]
+    @State private var manualBundleID = ""
     @State private var apps: [RunningApp] = []
 
     private struct RunningApp: Identifiable {
@@ -746,7 +747,7 @@ struct KeyLayerEditorView: View {
         self.onClose = onClose
         self.onSaved = onSaved
         _name = State(initialValue: layer?.name ?? "")
-        _appBundleID = State(initialValue: layer?.appBundleID ?? "")
+        _appBundleIDs = State(initialValue: layer?.appBundleIDs ?? [])
     }
 
     var body: some View {
@@ -764,25 +765,83 @@ struct KeyLayerEditorView: View {
                     .background(RoundedRectangle(cornerRadius: 10).fill(Duo.polar))
             }
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text("激活条件").font(.duo(11, .bold)).foregroundStyle(Duo.eel)
-                Picker("", selection: $appBundleID) {
-                    Text("手动激活（不自动）").tag("")
-                    ForEach(apps) { app in
-                        Text(app.name).tag(app.id)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("激活条件（可多选）").font(.duo(11, .bold)).foregroundStyle(Duo.eel)
+
+                if appBundleIDs.isEmpty {
+                    Text("手动激活（不自动）")
+                        .font(.duo(11, .medium))
+                        .foregroundStyle(Duo.hare)
+                        .padding(.vertical, 6)
+                } else {
+                    ScrollView {
+                        VStack(spacing: 6) {
+                            ForEach(appBundleIDs, id: \.self) { bundleID in
+                                HStack(spacing: 8) {
+                                    VStack(alignment: .leading, spacing: 1) {
+                                        Text(displayName(for: bundleID))
+                                            .font(.duo(11, .bold))
+                                            .foregroundStyle(Duo.eel)
+                                        Text(bundleID)
+                                            .font(.duo(9, .medium))
+                                            .foregroundStyle(Duo.hare)
+                                    }
+                                    Spacer()
+                                    Button {
+                                        remove(bundleID)
+                                    } label: {
+                                        Image(systemName: "xmark")
+                                            .font(.system(size: 9, weight: .bold))
+                                            .foregroundStyle(Duo.wolf)
+                                            .frame(width: 22, height: 22)
+                                            .background(Circle().fill(Duo.polar))
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                                .padding(7)
+                                .background(RoundedRectangle(cornerRadius: 9).fill(Duo.polar.opacity(0.7)))
+                            }
+                        }
                     }
+                    .frame(maxHeight: 132)
                 }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .frame(maxWidth: .infinity, alignment: .leading)
 
-                TextField("com.example.app（可手填）", text: $appBundleID)
-                    .textFieldStyle(.plain)
-                    .font(.duo(10, .medium))
-                    .padding(8)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(Duo.polar))
+                HStack(spacing: 8) {
+                    Menu {
+                        if apps.isEmpty {
+                            Text("没有正在运行的应用")
+                        }
+                        ForEach(apps) { app in
+                            Button {
+                                toggle(app.id)
+                            } label: {
+                                if isSelected(app.id) {
+                                    Label(app.name, systemImage: "checkmark")
+                                } else {
+                                    Text(app.name)
+                                }
+                            }
+                        }
+                    } label: {
+                        Label("添加应用", systemImage: "plus")
+                            .font(.duo(11, .bold))
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
 
-                Text("选择某个应用后，它在前台时这一层会自动生效；也可以手填 Bundle ID，或随时用按键切层 / 手动激活。")
+                    TextField("com.example.app（可手填）", text: $manualBundleID)
+                        .textFieldStyle(.plain)
+                        .font(.duo(10, .medium))
+                        .padding(8)
+                        .background(RoundedRectangle(cornerRadius: 8).fill(Duo.polar))
+                        .onSubmit(addManual)
+
+                    Button("添加", action: addManual)
+                        .buttonStyle(DuoSecondaryButtonStyle(height: 30))
+                        .disabled(manualBundleID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+
+                Text("可添加多个应用；其中任意一个在前台时这一层自动生效。列表为空时只能手动激活；也可以随时用按键切层。")
                     .font(.duo(9, .medium))
                     .foregroundStyle(Duo.wolf)
                     .fixedSize(horizontal: false, vertical: true)
@@ -798,7 +857,7 @@ struct KeyLayerEditorView: View {
                     let updated = KeyLayer(
                         id: layer?.id ?? UUID().uuidString,
                         name: trimmed,
-                        appBundleID: appBundleID.isEmpty ? nil : appBundleID,
+                        appBundleIDs: appBundleIDs,
                         bindings: layer?.bindings ?? [:]
                     )
                     model.upsertKeyLayer(updated)
@@ -810,9 +869,41 @@ struct KeyLayerEditorView: View {
             }
         }
         .padding(20)
-        .frame(width: 420)
+        .frame(width: 440)
         .background(Duo.white)
         .onAppear(perform: loadApps)
+    }
+
+    private func isSelected(_ bundleID: String) -> Bool {
+        appBundleIDs.contains { $0.caseInsensitiveCompare(bundleID) == .orderedSame }
+    }
+
+    private func displayName(for bundleID: String) -> String {
+        apps.first(where: { $0.id.caseInsensitiveCompare(bundleID) == .orderedSame })?.name
+            ?? NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+                .first?.localizedName
+            ?? bundleID
+    }
+
+    private func toggle(_ bundleID: String) {
+        if isSelected(bundleID) {
+            remove(bundleID)
+        } else {
+            appBundleIDs.append(bundleID)
+        }
+    }
+
+    private func remove(_ bundleID: String) {
+        appBundleIDs.removeAll { $0.caseInsensitiveCompare(bundleID) == .orderedSame }
+    }
+
+    private func addManual() {
+        let value = manualBundleID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return }
+        if !isSelected(value) {
+            appBundleIDs.append(value)
+        }
+        manualBundleID = ""
     }
 
     private func loadApps() {
@@ -821,11 +912,12 @@ struct KeyLayerEditorView: View {
         for app in NSWorkspace.shared.runningApplications {
             guard app.activationPolicy == .regular,
                   let bundle = app.bundleIdentifier else { continue }
-            guard seen.insert(bundle).inserted else { continue }
+            guard seen.insert(bundle.lowercased()).inserted else { continue }
             list.append(RunningApp(id: bundle, name: app.localizedName ?? bundle))
         }
-        if !appBundleID.isEmpty, !seen.contains(appBundleID) {
-            list.append(RunningApp(id: appBundleID, name: appBundleID))
+        for bundle in appBundleIDs {
+            guard seen.insert(bundle.lowercased()).inserted else { continue }
+            list.append(RunningApp(id: bundle, name: displayName(for: bundle)))
         }
         apps = list.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }

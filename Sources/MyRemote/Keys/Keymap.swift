@@ -268,12 +268,74 @@ struct KeyLayer: Codable, Identifiable, Equatable {
 
     var id: String
     var name: String
-    /// 前台应用 Bundle ID；nil 表示只能手动激活。
-    var appBundleID: String?
+    /// 前台应用 Bundle ID 列表；任一匹配即激活；空数组表示只能手动激活。
+    var appBundleIDs: [String]
     /// RemoteKey.rawValue → KeyAction.id；缺省 = 穿透到下一层。
     var bindings: [String: String]
 
     var isDefault: Bool { id == Self.defaultID }
+
+    /// 兼容旧代码/旧配置的单应用入口：读取第一个，写入时替换整个列表。
+    var appBundleID: String? {
+        get { appBundleIDs.first }
+        set { appBundleIDs = newValue.map { [$0] } ?? [] }
+    }
+
+    init(id: String, name: String, appBundleIDs: [String], bindings: [String: String]) {
+        self.id = id
+        self.name = name
+        self.appBundleIDs = Self.normalizedAppIDs(appBundleIDs)
+        self.bindings = bindings
+    }
+
+    init(id: String, name: String, appBundleID: String?, bindings: [String: String]) {
+        self.init(id: id, name: name,
+                  appBundleIDs: appBundleID.map { [$0] } ?? [],
+                  bindings: bindings)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, appBundleID, appBundleIDs, bindings
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        bindings = try container.decode([String: String].self, forKey: .bindings)
+        if let list = try container.decodeIfPresent([String].self, forKey: .appBundleIDs) {
+            appBundleIDs = Self.normalizedAppIDs(list)
+        } else if let one = try container.decodeIfPresent(String.self, forKey: .appBundleID) {
+            appBundleIDs = Self.normalizedAppIDs([one])
+        } else {
+            appBundleIDs = []
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(bindings, forKey: .bindings)
+        if !appBundleIDs.isEmpty {
+            try container.encode(appBundleIDs, forKey: .appBundleIDs)
+            // 同时写第一个，保证旧版 MyRemote 也能读到触发应用。
+            try container.encode(appBundleIDs[0], forKey: .appBundleID)
+        }
+    }
+
+    private static func normalizedAppIDs(_ ids: [String]) -> [String] {
+        var seen = Set<String>()
+        var result: [String] = []
+        for raw in ids {
+            let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !value.isEmpty else { continue }
+            let key = value.lowercased()
+            guard seen.insert(key).inserted else { continue }
+            result.append(value)
+        }
+        return result
+    }
 
     func action(for key: RemoteKey) -> KeyAction? {
         bindings[key.rawValue].flatMap(KeyAction.init(id:))
@@ -281,11 +343,11 @@ struct KeyLayer: Codable, Identifiable, Equatable {
 
     /// 复制为普通层（默认层也会变成可删除/可编辑的普通层）。
     func duplicated(name: String, id: String = UUID().uuidString) -> KeyLayer {
-        KeyLayer(id: id, name: name, appBundleID: appBundleID, bindings: bindings)
+        KeyLayer(id: id, name: name, appBundleIDs: appBundleIDs, bindings: bindings)
     }
 
     static func makeDefault() -> KeyLayer {
-        KeyLayer(id: defaultID, name: localized("默认层"), appBundleID: nil, bindings: [
+        KeyLayer(id: defaultID, name: localized("默认层"), appBundleIDs: [], bindings: [
             RemoteKey.power.rawValue: KeyAction.displaySleep.id,
             RemoteKey.tv.rawValue: KeyAction.mode(.command).id,
             RemoteKey.home.rawValue: KeyAction.mode(.forward).id,
@@ -325,8 +387,9 @@ enum KeymapResolver {
         let frontmost = frontmostBundleID?.lowercased()
         for layer in layers where !layer.isDefault {
             guard !seen.contains(layer.id) else { continue }
-            guard let app = layer.appBundleID?.lowercased(), !app.isEmpty else { continue }
-            if app == frontmost {
+            let apps = layer.appBundleIDs.map { $0.lowercased() }
+            guard !apps.isEmpty else { continue }
+            if let frontmost, apps.contains(frontmost) {
                 result.append(layer)
                 seen.insert(layer.id)
             }

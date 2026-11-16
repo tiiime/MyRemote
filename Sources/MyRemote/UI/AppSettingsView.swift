@@ -345,7 +345,7 @@ struct AppSettingsView: View {
                     .textSelection(.enabled)
             }
 
-            Text("MyRemote 0.13.1 · SenseVoice · sherpa-onnx · 语音链路移植自 MiRemote（MIT）")
+            Text("MyRemote 0.13.2 · SenseVoice · sherpa-onnx · 语音链路移植自 MiRemote（MIT）")
                 .font(.duo(10, .medium))
                 .foregroundStyle(Duo.hare)
         }

@@ -400,3 +400,11 @@
 "%@ 副本 %lld" = "%@ copy %lld";
 "已复制层：%@" = "Duplicated layer: %@";
 "复制层" = "Duplicate layer";
+
+/* 多应用激活条件 */
+"激活条件（可多选）" = "Activation (multiple apps)";
+"添加应用" = "Add app";
+"没有正在运行的应用" = "No running apps";
+"可添加多个应用；其中任意一个在前台时这一层自动生效。列表为空时只能手动激活；也可以随时用按键切层。" = "Add multiple apps; this layer activates when any of them is frontmost. Leave the list empty for manual activation, or switch layers with a key.";
+"前台应用（%lld 个）：%@" = "Frontmost apps (%lld): %@";
+"解析顺序：手动层 → 匹配前台应用的层 → 默认层；某个键在当前层没绑定时自动穿透到下一层，默认层永远兜底。复制层会沿用绑定和触发条件，适合做变体。" = "Order: manual layer → frontmost-app layer → default layer. Unbound keys fall through; the default layer always catches them. Duplicated layers keep bindings and triggers, handy for variants.";
