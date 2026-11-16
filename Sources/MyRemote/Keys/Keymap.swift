@@ -279,6 +279,11 @@ struct KeyLayer: Codable, Identifiable, Equatable {
         bindings[key.rawValue].flatMap(KeyAction.init(id:))
     }
 
+    /// 复制为普通层（默认层也会变成可删除/可编辑的普通层）。
+    func duplicated(name: String, id: String = UUID().uuidString) -> KeyLayer {
+        KeyLayer(id: id, name: name, appBundleID: appBundleID, bindings: bindings)
+    }
+
     static func makeDefault() -> KeyLayer {
         KeyLayer(id: defaultID, name: localized("默认层"), appBundleID: nil, bindings: [
             RemoteKey.power.rawValue: KeyAction.displaySleep.id,

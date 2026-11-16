@@ -315,7 +315,7 @@ struct KeymapView: View {
                             .buttonStyle(DuoSecondaryButtonStyle(height: 30))
                           ))
 
-            Text("解析顺序：手动层 → 匹配前台应用的层 → 默认层；某个键在当前层没绑定时自动穿透到下一层，默认层永远兜底。")
+            Text("解析顺序：手动层 → 匹配前台应用的层 → 默认层；某个键在当前层没绑定时自动穿透到下一层，默认层永远兜底。复制层会沿用绑定和触发条件，适合做变体。")
                 .font(.duo(10, .medium))
                 .foregroundStyle(Duo.wolf)
                 .fixedSize(horizontal: false, vertical: true)
@@ -398,6 +398,18 @@ struct KeymapView: View {
             .buttonStyle(.plain)
 
             HStack(spacing: 6) {
+                Button {
+                    duplicate(layer)
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(Duo.whale)
+                        .frame(width: 26, height: 26)
+                        .background(Circle().fill(Duo.iguana))
+                }
+                .buttonStyle(.plain)
+                .help(localized("复制层"))
+
                 if !layer.isDefault {
                     Button(manual ? "取消" : "激活") {
                         model.setManualLayer(manual ? nil : layer.id)
@@ -443,6 +455,12 @@ struct KeymapView: View {
                 .strokeBorder(selected ? Duo.treeFrog.opacity(0.5) : Duo.swan,
                               lineWidth: selected ? 2 : 1)
         )
+    }
+
+    private func duplicate(_ layer: KeyLayer) {
+        guard let copy = model.duplicateKeyLayer(id: layer.id) else { return }
+        selectedLayerID = copy.id
+        Toast.shared.show(localized("已复制层：%@", copy.name), duration: 1.6)
     }
 
     private func conditionText(_ layer: KeyLayer) -> String {

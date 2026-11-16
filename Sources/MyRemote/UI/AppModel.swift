@@ -110,6 +110,23 @@ final class SettingsModel: ObservableObject {
 
     // MARK: - 按键层
 
+    @discardableResult
+    func duplicateKeyLayer(id: String) -> KeyLayer? {
+        guard let source = config.keyLayers.first(where: { $0.id == id }) else { return nil }
+
+        var name = localized("%@ 副本", source.name)
+        var index = 2
+        while config.keyLayers.contains(where: { $0.name == name }) {
+            name = localized("%@ 副本 %lld", source.name, index)
+            index += 1
+        }
+
+        let copy = source.duplicated(name: name)
+        services.updateConfig { $0.keyLayers.append(copy) }
+        config = services.config
+        return copy
+    }
+
     func upsertKeyLayer(_ layer: KeyLayer) {
         services.updateConfig { config in
             if let index = config.keyLayers.firstIndex(where: { $0.id == layer.id }) {

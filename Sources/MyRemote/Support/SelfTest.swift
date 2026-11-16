@@ -24,6 +24,7 @@ enum SelfTest {
         testModeKeyMapping()
         testStatusIcons()
         testPermissionGuide()
+        testLayerDuplication()
         testCommandMatching()
         testCommandDefaultsAndMigration()
         testCommandRoundtrip()
@@ -266,6 +267,23 @@ enum SelfTest {
         for alias in aliases {
             expect(rule?.phrases.contains(alias) == true, "迁移后包含别名：\(alias)")
         }
+    }
+
+    private static func testLayerDuplication() {
+        let source = KeyLayer(
+            id: "source", name: "剪辑", appBundleID: "com.example.editor",
+            bindings: [RemoteKey.ok.rawValue: KeyAction.playPause.id]
+        )
+        let copy = source.duplicated(name: "剪辑 副本", id: "copy")
+        expect(copy.id == "copy", "复制层使用新 ID")
+        expect(copy.name == "剪辑 副本", "复制层使用新名称")
+        expect(copy.bindings == source.bindings, "复制层完整复制绑定")
+        expect(copy.appBundleID == "com.example.editor", "复制层保留应用触发条件")
+        expect(!copy.isDefault, "复制层不是默认层")
+
+        let defaultCopy = KeyLayer.makeDefault().duplicated(name: "默认层 副本", id: "default-copy")
+        expect(!defaultCopy.isDefault, "默认层复制后变成普通层")
+        expect(defaultCopy.bindings == KeyLayer.makeDefault().bindings, "默认层复制保留全部绑定")
     }
 
     private static func testCommandMatching() {

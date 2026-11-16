@@ -4,7 +4,7 @@
 
 ![MyRemote](docs/ui-dashboard.png)
 
-`v0.13.0` · macOS 14+ · Apple Silicon · MIT
+`v0.13.1` · macOS 14+ · Apple Silicon · MIT
 
 ## 演示
 
@@ -22,7 +22,7 @@ https://github.com/user-attachments/assets/30bdf227-e75d-463a-8728-1120c050484d
   - `Menu` 文字输入模式：语音识别后粘贴到前台输入框。
 - **语音共享**：配合 [BlackHole 2ch](https://existential.audio/blackhole/)，其他 App 可以把遥控器当麦克风。
 - **联动 DeepSeek Harness**：命令模式识别出的文字可以直接投递到本机 DSH 会话，由 Agent 控制电脑，例如播放音乐、打开应用。
-- **按键映射**：可视化遥控器布局，支持默认层 / 应用层 / 手动层、穿透兜底；动作可映射到媒体/系统键、模式切换、打开应用/网页、运行 Shell、发送到 DSH、任意键盘 keycode（如回车）。
+- **按键映射**：可视化遥控器布局，支持默认层 / 应用层 / 手动层、穿透兜底和整层复制；动作可映射到媒体/系统键、模式切换、打开应用/网页、运行 Shell、发送到 DSH、任意键盘 keycode（如回车）。
 - **Web 遥控器**：Mac 内置局域网 HTTPS 页面，手机扫码即可按键遥控，并把手机麦克风通过 WebSocket PCM 送进同一套 ASR / BlackHole 链路。
 - **权限向导**：拖拽 App 图标到系统设置完成辅助功能 / 输入监控授权。
 - **菜单栏常驻**：状态、电量、模式切换、模型/声卡状态和常用操作。
@@ -38,7 +38,7 @@ cd MyRemote
 open dist/MyRemote.app
 ```
 
-也可以直接解压 `dist/MyRemote-0.13.0.zip` 后拖进「应用程序」。
+也可以直接解压 `dist/MyRemote-0.13.1.zip` 后拖进「应用程序」。
 
 首次启动：
 
@@ -71,8 +71,8 @@ open dist/MyRemote.app
 推送 `v*` tag 会自动在 GitHub Actions 的 Apple Silicon runner 上构建、自检并创建 Release：
 
 ```bash
-git tag v0.13.0
-git push origin v0.13.0
+git tag v0.13.1
+git push origin v0.13.1
 ```
 
 也可以在仓库的 **Actions → Release → Run workflow** 手动触发（填版本号）；勾选 `create_release` 时会用 `v<版本>` 作为 tag 创建 Release，不勾选则只上传构建 artifact。产物包含 `MyRemote-<版本>.zip` 和 SHA-256 校验文件。

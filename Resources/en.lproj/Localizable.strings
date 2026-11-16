@@ -394,3 +394,9 @@
 "把识别文本写入日志" = "Write recognised text to the log";
 "正文会以明文写进 ~/Library/Logs/MyRemote.log，仅用于排查问题" = "The text is written in plain text to ~/Library/Logs/MyRemote.log, for troubleshooting only";
 "默认只记录时长、语言和字数，不写正文" = "By default only duration, language and length are logged, never the text";
+
+/* 按键映射层复制 */
+"%@ 副本" = "%@ copy";
+"%@ 副本 %lld" = "%@ copy %lld";
+"已复制层：%@" = "Duplicated layer: %@";
+"复制层" = "Duplicate layer";
