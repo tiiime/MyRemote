@@ -1,4 +1,5 @@
 import Foundation
+import Carbon
 import CoreGraphics
 import CryptoKit
 
@@ -21,6 +22,7 @@ enum SelfTest {
         testKeymapLayers()
         testKeyCommandActions()
         testKeyboardShortcuts()
+        testKeyboardEvents()
         testModeKeyMapping()
         testStatusIcons()
         testPermissionGuide()
@@ -220,6 +222,40 @@ enum SelfTest {
                "Esc keycode 解析")
         expect(action.routerAction == .keyboard(cmdReturn), "键盘动作映射到路由")
         expect(KeyAction(id: "key:not-a-number:0") == nil, "非法 keycode 拒绝")
+    }
+
+    private static func testKeyboardEvents() {
+        guard let source = CGEventSource(stateID: .privateState) else {
+            expect(false, "能创建键盘事件源")
+            return
+        }
+        let tab = CGKeyCode(kVK_Tab)
+        let command = CGKeyCode(kVK_Command)
+        let forward = MediaController.keyEvents(tab, flags: .maskCommand, heldFlags: [], source: source)
+        expect(forward.map(\.type) == [.flagsChanged, .keyDown, .keyUp, .flagsChanged],
+               "⌘Tab 发送完整的修饰键按下和松开事件")
+        expect(forward.map { $0.getIntegerValueField(.keyboardEventKeycode) } ==
+               [command, tab, tab, command].map(Int64.init), "⌘Tab 按 Command、Tab、Tab、Command 排序")
+        expect(forward.map { $0.flags.contains(.maskCommand) } == [true, true, true, false],
+               "⌘Tab 在最后一个事件清除 Command 标记")
+
+        let backward = MediaController.keyEvents(tab, flags: [.maskCommand, .maskShift],
+                                                 heldFlags: [], source: source)
+        expect(backward.map { $0.flags.contains(.maskShift) } == [false, true, true, false],
+               "⌘⇧Tab 保留 Tab 上的 Shift 标记")
+
+        let heldCommand: CGEventFlags = [.maskCommand, .init(rawValue: UInt64(NX_DEVICERCMDKEYMASK))]
+        let alreadyHeld = MediaController.keyEvents(tab, flags: .maskCommand,
+                                                   heldFlags: heldCommand, source: source)
+        expect(alreadyHeld.map(\.type) == [.keyDown, .keyUp] && alreadyHeld.map(\.flags) == [heldCommand, heldCommand],
+               "⌘Tab 不松开用户已按住的 Command")
+        let plain = MediaController.keyEvents(tab, flags: [], heldFlags: [], source: source)
+        let paste = MediaController.keyEvents(CGKeyCode(kVK_ANSI_V), flags: .maskCommand,
+                                              heldFlags: [], source: source)
+        expect(plain.map(\.type) == [.keyDown, .keyUp] && plain.map(\.flags) == [[], []],
+               "普通 Tab 事件不变")
+        expect(paste.map(\.type) == [.keyDown, .keyUp] && paste.map(\.flags) == [.maskCommand, .maskCommand],
+               "⌘V 事件不变")
     }
 
     private static func testModeKeyMapping() {

@@ -1,6 +1,7 @@
 import Foundation
 import CoreGraphics
 import AppKit
+import Carbon
 
 /// 系统媒体键（NX_SYSDEFINED）。投递后由系统媒体路由处理：
 /// Music / Spotify / 浏览器 / IINA 等支持「正在播放」的 App 都会被控。
@@ -39,35 +40,44 @@ enum MediaController {
         }
     }
 
-    /// 投递普通键盘事件（按键码 + 修饰键）。
+    /// 投递键盘事件（按键码 + 修饰键）。
     static func postKeyCode(_ keyCode: CGKeyCode, flags: CGEventFlags = [], extraFlags: CGEventFlags = []) {
         guard let source = CGEventSource(stateID: .hidSystemState) else { return }
-        for down in [true, false] {
-            guard let event = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: down) else { continue }
-            event.flags = flags.union(extraFlags)
+        let shortcutFlags = flags.union(extraFlags)
+        let heldFlags = keyCode == kVK_Tab && shortcutFlags.contains(.maskCommand)
+            ? CGEventSource.flagsState(.hidSystemState) : []
+        for event in keyEvents(keyCode, flags: shortcutFlags, heldFlags: heldFlags, source: source) {
             event.post(tap: .cghidEventTap)
         }
     }
 
-    /// 组合键：先按下修饰键，再按主键（用于 Mission Control 等需要修饰的系统快捷键）。
-    static func postCombo(modifiers: [CGKeyCode], key: CGKeyCode) {
-        guard let source = CGEventSource(stateID: .hidSystemState) else { return }
-        for code in modifiers {
-            if let event = CGEvent(keyboardEventSource: source, virtualKey: code, keyDown: true) {
-                event.post(tap: .cghidEventTap)
-            }
+    static func keyEvents(_ keyCode: CGKeyCode, flags: CGEventFlags, heldFlags: CGEventFlags,
+                          source: CGEventSource) -> [CGEvent] {
+        // ⌘Tab 的切换器在 Command 松开时才确认；只有 Tab 上的 ⌘ 标记不够。
+        // 如果用户已经按着 Command，不替用户松开它。
+        let isAppSwitch = keyCode == kVK_Tab && flags.contains(.maskCommand)
+        let synthesizeCommand = isAppSwitch && !heldFlags.contains(.maskCommand)
+        let leftCommand = CGEventFlags(rawValue: UInt64(NX_DEVICELCMDKEYMASK)).union(.maskCommand)
+        var keyFlags = isAppSwitch ? flags.union(heldFlags) : flags
+        if synthesizeCommand { keyFlags.formUnion(leftCommand) }
+        var steps: [(code: CGKeyCode, down: Bool, flags: CGEventFlags)] = [
+            (keyCode, true, keyFlags), (keyCode, false, keyFlags),
+        ]
+        if synthesizeCommand {
+            let command = CGKeyCode(kVK_Command)
+            steps.insert((command, true, heldFlags.union(leftCommand)), at: 0)
+            steps.append((command, false, heldFlags))
         }
-        for down in [true, false] {
-            if let event = CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: down) {
-                if down { event.flags = .maskControl }
-                event.post(tap: .cghidEventTap)
-            }
+
+        var events: [CGEvent] = []
+        for step in steps {
+            // 先创建整组再投递，避免只发了 Command 按下、没发松开。
+            guard let event = CGEvent(keyboardEventSource: source, virtualKey: step.code, keyDown: step.down)
+            else { return [] }
+            event.flags = step.flags
+            events.append(event)
         }
-        for code in modifiers.reversed() {
-            if let event = CGEvent(keyboardEventSource: source, virtualKey: code, keyDown: false) {
-                event.post(tap: .cghidEventTap)
-            }
-        }
+        return events
     }
 
     /// 让显示器睡眠（等价于按电源键熄屏，可随时唤醒）。
